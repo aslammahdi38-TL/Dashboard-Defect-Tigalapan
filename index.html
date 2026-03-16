@@ -1,0 +1,1313 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Defect Produksi 2026</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
+
+/* ═══════════════════════════════════
+   PANDUAN SETUP — BACA SEBELUM DEPLOY
+   ═══════════════════════════════════
+   1. Buka Google Sheets Anda
+   2. File → Share → Publish to web
+   3. Pilih sheet data → format CSV → Publish
+   4. Copy URL → paste di variabel SHEET_CSV_URL di bawah
+   5. Upload file ini ke GitHub → aktifkan GitHub Pages
+   ═══════════════════════════════════ */
+
+:root {
+  --bg:    #f4f6fb;
+  --surf:  #ffffff;
+  --surf2: #f0f3fa;
+  --surf3: #e8ecf5;
+  --brd:   #dde2ef;
+  --brd2:  #c8d0e5;
+  --txt:   #111827;
+  --txt2:  #4b5563;
+  --txt3:  #9ca3af;
+  --jan:   #2563eb; --jan-bg:#eff6ff; --jan-b:#bfdbfe;
+  --feb:   #d97706; --feb-bg:#fffbeb; --feb-b:#fde68a;
+  --mar:   #059669; --mar-bg:#ecfdf5; --mar-b:#a7f3d0;
+  --red:   #dc2626; --red-bg:#fef2f2;
+  --grn:   #16a34a; --grn-bg:#dcfce7;
+  --teal:  #0891b2; --teal-bg:#ecfeff;
+  --pur:   #7c3aed;
+  --r: 14px;
+  --sh: 0 1px 3px rgba(0,0,0,.06),0 4px 16px rgba(0,0,0,.04);
+  --sh2: 0 4px 24px rgba(0,0,0,.1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;font-size:14px;line-height:1.5}
+
+/* LOADING SCREEN */
+#loading{position:fixed;inset:0;background:#fff;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;transition:opacity .4s}
+#loading.hide{opacity:0;pointer-events:none}
+.spinner{width:44px;height:44px;border:4px solid #e5e7eb;border-top-color:#2563eb;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-txt{font-size:14px;color:#6b7280;font-weight:500}
+.loading-sub{font-size:11px;color:#9ca3af;font-family:'DM Mono',monospace}
+
+/* ERROR BANNER */
+#error-banner{display:none;background:#fef2f2;border:1.5px solid #fca5a5;border-radius:12px;padding:1rem 1.25rem;margin:1rem 2rem;color:#dc2626}
+#error-banner h4{font-size:13px;font-weight:700;margin-bottom:4px}
+#error-banner p{font-size:12px;color:#b91c1c}
+#error-banner code{background:#fee2e2;padding:2px 6px;border-radius:4px;font-family:'DM Mono',monospace;font-size:11px}
+
+/* HEADER */
+.hdr{background:linear-gradient(135deg,#1e3a5f 0%,#1d4ed8 60%,#1e40af 100%);padding:0 2rem;height:64px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:300;box-shadow:0 2px 20px rgba(0,0,0,.25)}
+.hdr-l{display:flex;align-items:center;gap:12px}
+.hdr-ico{width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;font-size:20px}
+.hdr-title{font-size:15px;font-weight:700;color:#fff;letter-spacing:-.02em}
+.hdr-sub{font-size:10px;color:rgba(255,255,255,.6);font-family:'DM Mono',monospace;margin-top:1px}
+.hdr-r{display:flex;align-items:center;gap:18px}
+.hkpi{text-align:right}
+.hkpi-v{font-size:15px;font-weight:700;color:#fff}
+.hkpi-l{font-size:9px;color:rgba(255,255,255,.55);text-transform:uppercase;letter-spacing:.06em}
+.hdr-badge{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;font-size:10px;font-weight:600;padding:5px 12px;border-radius:99px}
+.hdr-badge span{width:6px;height:6px;background:#4ade80;border-radius:50%;animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* SYNC STATUS BAR */
+.sync-bar{background:var(--jan-bg);border-bottom:1px solid var(--jan-b);padding:6px 2rem;display:flex;align-items:center;justify-content:space-between;font-size:11px}
+.sync-bar.ok{background:#ecfdf5;border-color:#a7f3d0}
+.sync-bar.err{background:#fef2f2;border-color:#fca5a5}
+.sync-left{display:flex;align-items:center;gap:8px;color:#374151}
+.sync-ico{font-size:14px}
+.sync-right{display:flex;align-items:center;gap:10px}
+.sync-btn{padding:4px 12px;background:var(--jan);color:#fff;border:none;border-radius:7px;font-size:10px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;transition:background .15s}
+.sync-btn:hover{background:#1d4ed8}
+.sync-time{font-size:10px;color:var(--txt3);font-family:'DM Mono',monospace}
+
+/* NAV */
+.nav{background:var(--surf);border-bottom:1px solid var(--brd);padding:0 2rem;display:flex;overflow-x:auto;box-shadow:var(--sh);position:sticky;top:64px;z-index:200}
+.nav::-webkit-scrollbar{display:none}
+.nt{padding:14px 20px;font-size:12px;font-weight:600;color:var(--txt3);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:all .15s}
+.nt:hover{color:var(--txt2)}
+.nt.on{color:var(--jan);border-bottom-color:var(--jan)}
+
+/* PAGES */
+.page{display:none;padding:2rem;max-width:1320px;margin:0 auto}
+.page.on{display:block;animation:up .22s ease}
+@keyframes up{from{opacity:.5;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* SECTION HEADING */
+.sh{margin-bottom:1.5rem}
+.sh h2{font-size:22px;font-weight:700;letter-spacing:-.04em;margin-bottom:3px}
+.sh p{font-size:11px;color:var(--txt3);font-family:'DM Mono',monospace}
+
+/* KPI CARDS */
+.krow{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:1.75rem}
+.kc{background:var(--surf);border:1px solid var(--brd);border-radius:var(--r);padding:1.3rem 1.4rem;position:relative;overflow:hidden;box-shadow:var(--sh);transition:transform .15s,box-shadow .15s}
+.kc:hover{transform:translateY(-2px);box-shadow:var(--sh2)}
+.kc::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--ac,var(--jan))}
+.kc-ico{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;margin-bottom:10px}
+.kc-lbl{font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--txt3);margin-bottom:5px}
+.kc-val{font-size:30px;font-weight:700;letter-spacing:-.05em;line-height:1;margin-bottom:4px}
+.kc-sub{font-size:10px;color:var(--txt3);font-family:'DM Mono',monospace}
+.kc-tag{display:inline-flex;font-size:10px;font-weight:600;padding:2px 8px;border-radius:6px;margin-top:6px}
+
+/* GRIDS */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:1.75rem}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:1.75rem}
+.g31{display:grid;grid-template-columns:2.2fr 1fr;gap:16px;margin-bottom:1.75rem}
+.gcol{display:flex;flex-direction:column;gap:14px}
+
+/* CARD */
+.card{background:var(--surf);border:1px solid var(--brd);border-radius:var(--r);padding:1.5rem;box-shadow:var(--sh)}
+.card-h{font-size:13px;font-weight:700;color:var(--txt);margin-bottom:3px;letter-spacing:-.02em}
+.card-s{font-size:10px;color:var(--txt3);font-family:'DM Mono',monospace;margin-bottom:1.2rem}
+
+/* MONTH PILLS */
+.mrow{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:1.75rem}
+.mpill{background:var(--surf);border:1.5px solid var(--brd);border-radius:var(--r);padding:1.1rem 1.3rem;cursor:pointer;transition:all .15s;box-shadow:var(--sh)}
+.mpill:hover{border-color:var(--brd2);transform:translateY(-1px)}
+.mp-lbl{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--txt3);margin-bottom:5px}
+.mp-rate{font-size:26px;font-weight:700;letter-spacing:-.05em;color:var(--txt)}
+.mp-info{font-size:10px;color:var(--txt3);font-family:'DM Mono',monospace;margin-top:3px}
+.mpill.a0{border-color:var(--brd2);background:var(--surf2)}.mpill.a0 .mp-lbl,.mpill.a0 .mp-rate{color:var(--txt2)}
+.mpill.a1{border-color:var(--jan);background:var(--jan-bg)}.mpill.a1 .mp-lbl,.mpill.a1 .mp-rate{color:var(--jan)}
+.mpill.a2{border-color:var(--feb);background:var(--feb-bg)}.mpill.a2 .mp-lbl,.mpill.a2 .mp-rate{color:var(--feb)}
+.mpill.a3{border-color:var(--mar);background:var(--mar-bg)}.mpill.a3 .mp-lbl,.mpill.a3 .mp-rate{color:var(--mar)}
+
+/* WEEK TABS */
+.wtabs{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:1.75rem}
+.wtab{background:var(--surf);border:1.5px solid var(--brd);border-radius:var(--r);padding:12px 13px;cursor:pointer;transition:all .15s;box-shadow:var(--sh)}
+.wtab:hover{transform:translateY(-1px)}
+.wt-l{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--txt3);margin-bottom:4px}
+.wt-r{font-size:20px;font-weight:700;letter-spacing:-.04em;color:var(--txt)}
+.wt-d{font-size:9px;color:var(--txt3);font-family:'DM Mono',monospace;margin-top:2px}
+.wtab.w1{border-color:var(--jan);background:var(--jan-bg)}.wtab.w1 .wt-l,.wtab.w1 .wt-r{color:var(--jan)}
+.wtab.w2{border-color:var(--feb);background:var(--feb-bg)}.wtab.w2 .wt-l,.wtab.w2 .wt-r{color:var(--feb)}
+.wtab.w3{border-color:var(--pur);background:#f5f3ff}.wtab.w3 .wt-l,.wtab.w3 .wt-r{color:var(--pur)}
+.wtab.w4{border-color:var(--red);background:var(--red-bg)}.wtab.w4 .wt-l,.wtab.w4 .wt-r{color:var(--red)}
+.wtab.w5{border-color:var(--mar);background:var(--mar-bg)}.wtab.w5 .wt-l,.wtab.w5 .wt-r{color:var(--mar)}
+
+/* BAR ROWS */
+.br{display:flex;align-items:center;gap:10px;margin-bottom:9px}
+.br-n{font-size:11px;font-weight:600;color:var(--txt2);width:52px;flex-shrink:0}
+.br-t{flex:1;height:8px;background:var(--surf2);border-radius:5px;overflow:hidden}
+.br-f{height:100%;border-radius:5px;transition:width .6s cubic-bezier(.4,0,.2,1)}
+.br-v{font-family:'DM Mono',monospace;font-size:11px;font-weight:500;min-width:46px;text-align:right}
+
+/* PILLS & BADGES */
+.pill{font-size:10px;font-weight:700;padding:3px 9px;border-radius:7px;white-space:nowrap;display:inline-block;letter-spacing:.02em}
+.p-red{background:var(--red-bg);color:var(--red)}
+.p-amb{background:var(--feb-bg);color:var(--feb)}
+.p-grn{background:var(--grn-bg);color:var(--grn)}
+.p-top{background:var(--teal-bg);color:var(--teal)}
+.b-jan{background:var(--jan-bg);color:var(--jan);font-size:9px;font-weight:700;padding:2px 8px;border-radius:6px}
+.b-feb{background:var(--feb-bg);color:var(--feb);font-size:9px;font-weight:700;padding:2px 8px;border-radius:6px}
+.b-mar{background:var(--mar-bg);color:var(--mar);font-size:9px;font-weight:700;padding:2px 8px;border-radius:6px}
+
+/* PO CARDS */
+.po4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:1.75rem}
+.poc{background:var(--surf);border:1px solid var(--brd);border-radius:var(--r);padding:1.1rem;border-top:3px solid var(--pac,var(--jan));box-shadow:var(--sh);transition:transform .15s}
+.poc:hover{transform:translateY(-2px)}
+.poc-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+.poc-name{font-size:17px;font-weight:700;letter-spacing:-.03em}
+.poc-date{font-size:9px;color:var(--txt3);font-family:'DM Mono',monospace}
+.poc-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px}
+.poc-s{background:var(--surf2);border-radius:8px;padding:7px 9px}
+.poc-sl{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--txt3);margin-bottom:2px}
+.poc-sv{font-size:16px;font-weight:700;letter-spacing:-.03em}
+.poc-mat{font-size:10px;color:var(--txt3);font-family:'DM Mono',monospace}
+
+/* INSIGHT BOX */
+.ins{border-radius:var(--r);padding:1rem 1.25rem;margin-bottom:1.75rem;border:1.5px solid}
+.ins-mar{background:var(--mar-bg);border-color:var(--mar-b)}
+.ins h4{font-size:12px;font-weight:700;margin-bottom:5px}
+.ins-mar h4{color:var(--mar)}
+.ins p{font-size:11px;color:var(--txt2);line-height:1.65}
+
+/* SECTION DIV */
+.sdiv{display:flex;align-items:center;gap:10px;margin-bottom:1.1rem}
+.sdiv span:last-child{font-size:10px;color:var(--txt3);font-family:'DM Mono',monospace}
+hr.d{border:none;border-top:1px solid var(--brd);margin:1.75rem 0}
+
+/* TABLE */
+.tscroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead th{text-align:left;padding:9px 12px;color:var(--txt3);font-size:9px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;border-bottom:2px solid var(--brd);white-space:nowrap}
+tbody td{padding:9px 12px;color:var(--txt2);border-bottom:1px solid var(--surf3);vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:var(--surf2);color:var(--txt)}
+.r{text-align:right}
+.mono{font-family:'DM Mono',monospace;font-size:11px}
+
+/* FILTER BUTTONS */
+.fbrow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1.25rem}
+.fb{padding:5px 13px;border-radius:99px;border:1.5px solid var(--brd);background:transparent;color:var(--txt3);font-size:11px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s}
+.fb:hover{border-color:var(--brd2);color:var(--txt2)}
+.fb.on{background:var(--jan-bg);border-color:var(--jan);color:var(--jan)}
+
+/* LEGEND */
+.leg{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+.li{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--txt3)}
+.lsq{width:9px;height:9px;border-radius:2px;flex-shrink:0}
+
+/* SETUP GUIDE CARD */
+.setup-card{background:var(--surf);border:2px dashed var(--jan-b);border-radius:var(--r);padding:2rem;text-align:center;margin:2rem}
+.setup-card h3{font-size:18px;font-weight:700;color:var(--jan);margin-bottom:8px}
+.setup-card p{font-size:13px;color:var(--txt2);margin-bottom:16px}
+.setup-steps{text-align:left;max-width:480px;margin:0 auto}
+.setup-step{display:flex;gap:12px;align-items:flex-start;margin-bottom:12px;padding:10px 14px;background:var(--surf2);border-radius:10px}
+.step-num{width:26px;height:26px;border-radius:50%;background:var(--jan);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.step-txt{font-size:12px;color:var(--txt2);line-height:1.5}
+.step-txt strong{color:var(--txt);display:block;margin-bottom:2px}
+.setup-input{width:100%;padding:10px 14px;border:1.5px solid var(--jan-b);border-radius:10px;font-size:12px;font-family:'DM Mono',monospace;background:#fff;color:var(--txt);margin-top:8px;outline:none}
+.setup-input:focus{border-color:var(--jan)}
+.setup-save-btn{margin-top:12px;padding:10px 24px;background:var(--jan);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif}
+.setup-save-btn:hover{background:#1d4ed8}
+
+footer{text-align:center;padding:2rem;font-size:10px;color:var(--txt3);font-family:'DM Mono',monospace;border-top:1px solid var(--brd);margin-top:1rem}
+
+@media(max-width:900px){
+  .krow,.po4{grid-template-columns:repeat(2,1fr)}
+  .g2,.g3,.g31,.g13,.mrow{grid-template-columns:1fr}
+  .wtabs{grid-template-columns:repeat(2,1fr)}
+  .page{padding:1rem}
+  .hdr,.nav,.sync-bar{padding:0 1rem}
+  .hdr-r .hkpi{display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="loading">
+  <div class="spinner"></div>
+  <div class="loading-txt">Memuat data dari Google Sheets...</div>
+  <div class="loading-sub" id="loading-sub">Menghubungkan ke sumber data</div>
+</div>
+
+<!-- ERROR BANNER -->
+<div id="error-banner">
+  <h4>⚠️ Gagal memuat data dari Google Sheets</h4>
+  <p id="error-msg">Pastikan URL Google Sheets sudah benar dan sudah di-publish sebagai CSV publik.</p>
+</div>
+
+<!-- HEADER -->
+<header class="hdr">
+  <div class="hdr-l">
+    <div class="hdr-ico">📊</div>
+    <div>
+      <div class="hdr-title">Dashboard Defect Produksi 2026</div>
+      <div class="hdr-sub" id="hdr-src">Menghubungkan ke Google Sheets...</div>
+    </div>
+  </div>
+  <div class="hdr-r">
+    <div class="hkpi"><div class="hkpi-v" id="h-prod">–</div><div class="hkpi-l">Total Produksi</div></div>
+    <div class="hkpi"><div class="hkpi-v" id="h-rej" style="color:#fbbf24">–</div><div class="hkpi-l">Total Reject</div></div>
+    <div class="hkpi"><div class="hkpi-v" id="h-rate" style="color:#4ade80">–</div><div class="hkpi-l">Overall Rate</div></div>
+    <div class="hdr-badge"><span></span> <span id="h-period">Live</span></div>
+  </div>
+</header>
+
+<!-- SYNC STATUS BAR -->
+<div class="sync-bar" id="sync-bar">
+  <div class="sync-left">
+    <span class="sync-ico">🔄</span>
+    <span id="sync-msg">Menghubungkan ke Google Sheets...</span>
+  </div>
+  <div class="sync-right">
+    <span class="sync-time" id="sync-time"></span>
+    <button class="sync-btn" onclick="loadData()">↻ Refresh</button>
+  </div>
+</div>
+
+<!-- NAV -->
+<nav class="nav">
+  <div class="nt on" onclick="goP('overview',this)">📊 Overview</div>
+  <div class="nt" onclick="goP('bulanan',this)">📅 Bulanan</div>
+  <div class="nt" onclick="goP('mingguan',this)">📆 Per Minggu</div>
+  <div class="nt" onclick="goP('vendor',this)">🏭 Vendor</div>
+  <div class="nt" onclick="goP('cacat',this)">🔍 Jenis Cacat</div>
+  <div class="nt" onclick="goP('detail',this)">📋 Detail Order</div>
+  <div class="nt" onclick="goP('setup',this)">⚙️ Setup</div>
+</nav>
+
+<!-- ═══════════════════ OVERVIEW ═══════════════════ -->
+<div class="page on" id="page-overview">
+  <div class="sh"><h2>Ringkasan Produksi</h2><p id="ov-src">Memuat data...</p></div>
+  <div class="krow">
+    <div class="kc" style="--ac:linear-gradient(90deg,#2563eb,#7c3aed)">
+      <div class="kc-ico" style="background:#eff6ff">🏭</div>
+      <div class="kc-lbl">Total Produksi</div>
+      <div class="kc-val" id="k-prod">–</div>
+      <div class="kc-sub">unit · semua PO</div>
+      <div class="kc-tag" style="background:#dbeafe;color:#1d4ed8" id="k-prod-sub">–</div>
+    </div>
+    <div class="kc" style="--ac:linear-gradient(90deg,#d97706,#dc2626)">
+      <div class="kc-ico" style="background:#fffbeb">⚠️</div>
+      <div class="kc-lbl">Total Reject</div>
+      <div class="kc-val" style="color:#d97706" id="k-rej">–</div>
+      <div class="kc-sub">unit ditolak QC</div>
+      <div class="kc-tag" style="background:#fef3c7;color:#b45309" id="k-rej-sub">–</div>
+    </div>
+    <div class="kc" style="--ac:linear-gradient(90deg,#059669,#0891b2)">
+      <div class="kc-ico" style="background:#ecfdf5">📉</div>
+      <div class="kc-lbl">Reject Rate</div>
+      <div class="kc-val" style="color:#059669" id="k-rate">–</div>
+      <div class="kc-sub">Target &lt; 1,00%</div>
+      <div class="kc-tag" style="background:#d1fae5;color:#065f46" id="k-rate-sub">–</div>
+    </div>
+    <div class="kc" style="--ac:linear-gradient(90deg,#2563eb,#059669)">
+      <div class="kc-ico" style="background:#ecfeff">📦</div>
+      <div class="kc-lbl">Reject Material</div>
+      <div class="kc-val" style="color:#2563eb" id="k-mat">–</div>
+      <div class="kc-sub">Bahan+Bolong+BS+Noda</div>
+      <div class="kc-tag" style="background:#dbeafe;color:#1d4ed8" id="k-mat-sub">–</div>
+    </div>
+  </div>
+  <div class="g31">
+    <div class="card">
+      <div class="card-h">Tren Reject Rate per PO</div>
+      <div class="card-s">Setiap titik = 1 PO · garis merah = target 1%</div>
+      <div class="leg">
+        <span class="li"><span class="lsq" style="background:#2563eb"></span>Januari</span>
+        <span class="li"><span class="lsq" style="background:#d97706"></span>Februari</span>
+        <span class="li"><span class="lsq" style="background:#059669"></span>Maret</span>
+        <span class="li"><span class="lsq" style="background:#dc2626"></span>Target 1%</span>
+      </div>
+      <div style="position:relative;height:240px"><canvas id="ov-trend"></canvas></div>
+    </div>
+    <div class="gcol">
+      <div class="card">
+        <div class="card-h">Rate Bulanan</div>
+        <div class="card-s">Penurunan konsisten</div>
+        <div style="position:relative;height:104px"><canvas id="ov-monthly"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-h">Material vs Proses</div>
+        <div class="card-s">Noda = Material</div>
+        <div style="position:relative;height:104px"><canvas id="ov-donut"></canvas></div>
+      </div>
+    </div>
+  </div>
+  <div class="g2">
+    <div class="card">
+      <div class="card-h">Rate per Vendor</div>
+      <div class="card-s">Keseluruhan semua bulan</div>
+      <div style="margin-top:10px" id="ov-vbars"></div>
+    </div>
+    <div class="card">
+      <div class="card-h">Jenis Cacat Terbanyak</div>
+      <div class="card-s">Biru = Material · Kuning = Proses · Noda = Material</div>
+      <div style="position:relative;height:235px"><canvas id="ov-types"></canvas></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-h">Rekap Per PO</div>
+    <div class="card-s">Klasifikasi: Noda = Material</div>
+    <div class="tscroll"><table>
+      <thead><tr><th>PO</th><th>Bulan</th><th class="r">Target Cut</th><th class="r">Produksi</th><th class="r">Yield</th><th class="r">Reject</th><th class="r">Rate</th><th class="r">Material</th><th class="r">Proses</th><th>Status</th></tr></thead>
+      <tbody id="ov-tbl"></tbody>
+    </table></div>
+  </div>
+</div>
+
+<!-- ═══════════════════ BULANAN ═══════════════════ -->
+<div class="page" id="page-bulanan">
+  <div class="sh"><h2>Perbandingan Bulanan</h2><p>Klik tab bulan untuk filter data</p></div>
+  <div class="mrow">
+    <div class="mpill a0" id="ms-all" onclick="setM('all',this)"><div class="mp-lbl">Gabungan</div><div class="mp-rate" id="mb-all-rate">–</div><div class="mp-info" id="mb-all-info">–</div></div>
+    <div class="mpill" id="ms-jan" onclick="setM('jan',this)"><div class="mp-lbl">Januari</div><div class="mp-rate" id="mb-jan-rate">–</div><div class="mp-info" id="mb-jan-info">–</div></div>
+    <div class="mpill" id="ms-feb" onclick="setM('feb',this)"><div class="mp-lbl">Februari</div><div class="mp-rate" id="mb-feb-rate">–</div><div class="mp-info" id="mb-feb-info">–</div></div>
+    <div class="mpill" id="ms-mar" onclick="setM('mar',this)"><div class="mp-lbl">Maret 🆕</div><div class="mp-rate" id="mb-mar-rate">–</div><div class="mp-info" id="mb-mar-info">–</div></div>
+  </div>
+  <div class="krow">
+    <div class="kc" style="--ac:var(--jan)"><div class="kc-lbl">Produksi</div><div class="kc-val" id="bm-p">–</div><div class="kc-sub" id="bm-ps">–</div></div>
+    <div class="kc" style="--ac:var(--feb)"><div class="kc-lbl">Reject</div><div class="kc-val" style="color:#d97706" id="bm-r">–</div><div class="kc-sub" id="bm-rs">–</div></div>
+    <div class="kc" style="--ac:var(--mar)"><div class="kc-lbl">Rate</div><div class="kc-val" id="bm-rate" style="color:#059669">–</div><div class="kc-sub">vs target 1%</div></div>
+    <div class="kc" style="--ac:var(--jan)"><div class="kc-lbl">Material</div><div class="kc-val" id="bm-mat">–</div><div class="kc-sub" id="bm-mats">–</div></div>
+  </div>
+  <div class="g2">
+    <div class="card">
+      <div class="card-h">Tren Rate per PO</div>
+      <div class="card-s" id="bm-trlbl">–</div>
+      <div style="position:relative;height:210px"><canvas id="bm-trend"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-h">Rate Vendor</div>
+      <div class="card-s" id="bm-vl">–</div>
+      <div id="bm-vbars" style="margin-top:10px"></div>
+    </div>
+  </div>
+  <div class="g2">
+    <div class="card">
+      <div class="card-h">Material vs Proses per Bulan</div>
+      <div class="card-s">Noda = Material</div>
+      <div class="leg"><span class="li"><span class="lsq" style="background:#2563eb"></span>Material</span><span class="li"><span class="lsq" style="background:#d97706"></span>Proses</span></div>
+      <div style="position:relative;height:190px"><canvas id="bm-matproses"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-h">Jenis Cacat per Bulan</div>
+      <div class="card-s">Jan · Feb · Mar</div>
+      <div style="position:relative;height:190px"><canvas id="bm-types"></canvas></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-h">Detail PO Bulan Dipilih</div>
+    <div class="card-s" id="bm-tbl-lbl">–</div>
+    <div class="tscroll"><table>
+      <thead><tr><th>PO</th><th>Vendor</th><th class="r">Produksi</th><th class="r">Reject</th><th class="r">Rate</th><th class="r">Material</th><th class="r">Proses</th><th>Status</th></tr></thead>
+      <tbody id="bm-rows"></tbody>
+    </table></div>
+  </div>
+</div>
+
+<!-- ═══════════════════ MINGGUAN ═══════════════════ -->
+<div class="page" id="page-mingguan">
+  <div class="sh"><h2>Breakdown Per PO / Minggu</h2><p>Klik PO untuk detail</p></div>
+  <div class="wtabs" id="po-tabs"></div>
+  <div class="krow">
+    <div class="kc" style="--ac:var(--jan)"><div class="kc-lbl">Produksi</div><div class="kc-val" id="wm-p">–</div><div class="kc-sub" id="wm-l">–</div></div>
+    <div class="kc" style="--ac:var(--feb)"><div class="kc-lbl">Reject</div><div class="kc-val" style="color:#d97706" id="wm-r">–</div><div class="kc-sub" id="wm-rs">–</div></div>
+    <div class="kc" style="--ac:var(--mar)"><div class="kc-lbl">Rate</div><div class="kc-val" id="wm-rate" style="color:#059669">–</div><div class="kc-sub">vs target 1%</div></div>
+    <div class="kc" style="--ac:var(--pur)"><div class="kc-lbl">vs PO Sebelumnya</div><div class="kc-val" id="wm-d" style="color:#9ca3af">—</div><div class="kc-sub" id="wm-dl">–</div></div>
+  </div>
+  <div class="g2">
+    <div class="card">
+      <div class="card-h">Tren Rate</div>
+      <div class="card-s" id="wm-trl">–</div>
+      <div style="position:relative;height:200px"><canvas id="wm-trend"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-h">Rate Vendor</div>
+      <div class="card-s" id="wm-vl">–</div>
+      <div id="wm-vbars" style="margin-top:10px"></div>
+    </div>
+  </div>
+  <div class="g2">
+    <div class="card">
+      <div class="card-h">Jenis Cacat</div>
+      <div class="card-s" id="wm-typel">–</div>
+      <div style="position:relative;height:190px"><canvas id="wm-type"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-h">Material vs Proses</div>
+      <div class="card-s" id="wm-srcl">–</div>
+      <div class="leg"><span class="li"><span class="lsq" style="background:#2563eb"></span>Material</span><span class="li"><span class="lsq" style="background:#d97706"></span>Proses</span></div>
+      <div style="position:relative;height:160px"><canvas id="wm-src"></canvas></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-h" id="wm-dettitle">Detail Order</div>
+    <div class="card-s" id="wm-detl">–</div>
+    <div class="tscroll"><table>
+      <thead><tr><th>Vendor</th><th>Kode</th><th class="r">Prod</th><th class="r">Rej</th><th class="r">Rate</th><th class="r">Bahan</th><th class="r">Bolong</th><th class="r">BS</th><th class="r" style="color:#2563eb">Noda★</th><th class="r">Mat</th><th class="r">Proses</th><th>Status</th></tr></thead>
+      <tbody id="wm-rows"></tbody>
+    </table></div>
+  </div>
+</div>
+
+<!-- ═══════════════════ VENDOR ═══════════════════ -->
+<div class="page" id="page-vendor">
+  <div class="sh"><h2>Analisis Vendor</h2><p>Performa semua vendor aktif</p></div>
+  <div class="g2">
+    <div class="card">
+      <div class="card-h">Rate per Vendor per Bulan</div>
+      <div class="card-s">Perbandingan bulanan</div>
+      <div class="leg"><span class="li"><span class="lsq" style="background:#2563eb"></span>Jan</span><span class="li"><span class="lsq" style="background:#d97706"></span>Feb</span><span class="li"><span class="lsq" style="background:#059669"></span>Mar</span></div>
+      <div style="position:relative;height:260px"><canvas id="vn-grp"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-h">Ranking Vendor</div>
+      <div class="card-s">Overall rate semua bulan</div>
+      <div style="margin-top:12px" id="vn-rank"></div>
+    </div>
+  </div>
+  <div class="g2">
+    <div class="card">
+      <div class="card-h">Porsi Produksi</div>
+      <div class="card-s">Total unit per vendor</div>
+      <div style="position:relative;height:220px"><canvas id="vn-prod"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-h">Porsi Reject</div>
+      <div class="card-s">% dari total reject</div>
+      <div style="position:relative;height:220px"><canvas id="vn-rej"></canvas></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-h">Scorecard Vendor</div>
+    <div class="card-s">Noda = Material</div>
+    <div class="tscroll"><table>
+      <thead><tr><th>Vendor</th><th class="r">Total Prod</th><th class="r">Total Rej</th><th class="r">Material</th><th class="r">Proses</th><th class="r">Overall Rate</th><th>Tren</th><th>Status</th></tr></thead>
+      <tbody id="vn-tbl"></tbody>
+    </table></div>
+  </div>
+</div>
+
+<!-- ═══════════════════ JENIS CACAT ═══════════════════ -->
+<div class="page" id="page-cacat">
+  <div class="sh"><h2>Analisis Jenis Cacat</h2><p>Noda = Material · Biru = Material · Kuning = Proses</p></div>
+  <div class="g2">
+    <div class="card">
+      <div class="card-h">Total per Jenis Cacat</div>
+      <div class="card-s">Biru = Material (termasuk Noda) · Kuning = Proses</div>
+      <div style="position:relative;height:270px"><canvas id="dc-hbar"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-h">Proporsi Jenis Cacat</div>
+      <div class="card-s">% dari total reject</div>
+      <div style="position:relative;height:270px"><canvas id="dc-donut"></canvas></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-h">Tren per Bulan</div>
+    <div class="card-s">Perbandingan Jan · Feb · Mar</div>
+    <div style="position:relative;height:240px"><canvas id="dc-monthly"></canvas></div>
+  </div>
+</div>
+
+<!-- ═══════════════════ DETAIL ORDER ═══════════════════ -->
+<div class="page" id="page-detail">
+  <div class="sh"><h2>Detail Semua Order</h2><p id="det-src">–</p></div>
+  <div class="fbrow" id="det-filters"></div>
+  <div class="card">
+    <div id="det-info" style="font-size:10px;color:var(--txt3);margin-bottom:12px;font-family:'DM Mono',monospace"></div>
+    <div class="tscroll"><table>
+      <thead><tr><th>PO</th><th>Bln</th><th>Vendor</th><th>Kode Produksi</th><th class="r">Prod</th><th class="r">Reject</th><th class="r">Rate</th><th class="r">Bahan</th><th class="r">Bolong</th><th class="r">BS</th><th class="r" style="color:#2563eb">Noda★</th><th class="r">Material</th><th class="r">Proses</th><th>Status</th></tr></thead>
+      <tbody id="det-rows"></tbody>
+    </table></div>
+    <div style="font-size:10px;color:var(--txt3);margin-top:8px">★ Noda = Reject Material</div>
+  </div>
+</div>
+
+<!-- ═══════════════════ SETUP ═══════════════════ -->
+<div class="page" id="page-setup">
+  <div class="sh"><h2>⚙️ Setup Koneksi Google Sheets</h2><p>Hubungkan dashboard ini ke Google Sheets Anda</p></div>
+
+  <div class="setup-card">
+    <h3>🔗 Masukkan URL Google Sheets Anda</h3>
+    <p>Dashboard ini akan otomatis tarik data dari Google Sheets setiap kali dibuka atau di-refresh.</p>
+
+    <div class="setup-steps">
+      <div class="setup-step">
+        <div class="step-num">1</div>
+        <div class="step-txt">
+          <strong>Buka Google Sheets Anda</strong>
+          Pastikan sheet berisi data dengan kolom: PO, Bulan, Vendor, Kode, Produksi, Reject, Bahan, Bolong, BS, Noda, Oli, DblBenang, Kotor, Bowing, Melintir, Mat, Proses
+        </div>
+      </div>
+      <div class="setup-step">
+        <div class="step-num">2</div>
+        <div class="step-txt">
+          <strong>Publish ke web</strong>
+          File → Share → Publish to web → Pilih sheet → CSV → Publish → Copy URL
+        </div>
+      </div>
+      <div class="setup-step">
+        <div class="step-num">3</div>
+        <div class="step-txt">
+          <strong>Paste URL di bawah ini</strong>
+          URL formatnya seperti: <code style="background:#f1f5f9;padding:2px 6px;border-radius:4px;font-family:'DM Mono',monospace;font-size:10px">https://docs.google.com/spreadsheets/d/.../export?format=csv&gid=...</code>
+        </div>
+      </div>
+
+      <input type="text" id="sheet-url-input" class="setup-input"
+        placeholder="https://docs.google.com/spreadsheets/d/YOUR_ID/export?format=csv&gid=0"
+        value="">
+      <br>
+      <button class="setup-save-btn" onclick="saveAndLoad()">💾 Simpan & Muat Data</button>
+    </div>
+
+    <div id="setup-status" style="margin-top:16px;font-size:12px;color:var(--txt3)"></div>
+  </div>
+
+  <div class="card" style="margin-top:1rem">
+    <div class="card-h">📋 Format Kolom Google Sheets yang Diharapkan</div>
+    <div class="card-s">Baris 1 = header · Baris 2 dst = data · Kolom harus sesuai urutan</div>
+    <div class="tscroll">
+      <table>
+        <thead><tr><th>Kolom</th><th>Nama</th><th>Contoh</th><th>Keterangan</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">A</td><td>PO</td><td class="mono">PO - 01</td><td>Format: "PO - 01"</td></tr>
+          <tr><td class="mono">B</td><td>Bulan</td><td class="mono">jan</td><td>jan / feb / mar</td></tr>
+          <tr><td class="mono">C</td><td>Vendor</td><td class="mono">YOGI</td><td>Nama vendor</td></tr>
+          <tr><td class="mono">D</td><td>Kode</td><td class="mono">GI0107JANUARI2026-01</td><td>Kode produksi</td></tr>
+          <tr><td class="mono">E</td><td>Produksi</td><td class="mono">4061</td><td>Total produksi (angka)</td></tr>
+          <tr><td class="mono">F</td><td>Reject</td><td class="mono">35</td><td>Total reject (angka)</td></tr>
+          <tr><td class="mono">G</td><td>Bahan</td><td class="mono">7</td><td>Reject bahan</td></tr>
+          <tr><td class="mono">H</td><td>Bolong</td><td class="mono">2</td><td>Reject bolong</td></tr>
+          <tr><td class="mono">I</td><td>BS</td><td class="mono">10</td><td>Reject BS</td></tr>
+          <tr><td class="mono">J</td><td>Noda</td><td class="mono">16</td><td>Reject noda (= Material)</td></tr>
+          <tr><td class="mono">K</td><td>Oli</td><td class="mono">0</td><td>Reject oli</td></tr>
+          <tr><td class="mono">L</td><td>DblBenang</td><td class="mono">0</td><td>Reject double benang</td></tr>
+          <tr><td class="mono">M</td><td>Kotor</td><td class="mono">0</td><td>Reject kotor</td></tr>
+          <tr><td class="mono">N</td><td>Bowing</td><td class="mono">0</td><td>Reject bowing</td></tr>
+          <tr><td class="mono">O</td><td>Melintir</td><td class="mono">0</td><td>Reject melintir</td></tr>
+          <tr><td class="mono">P</td><td>Mat</td><td class="mono">35</td><td>Total reject material</td></tr>
+          <tr><td class="mono">Q</td><td>Proses</td><td class="mono">0</td><td>Total reject proses</td></tr>
+          <tr><td class="mono">R</td><td>Target</td><td class="mono">4052</td><td>Target cutting</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<footer>Dashboard Defect Produksi · Connected to Google Sheets · Klasifikasi: Noda = Material · Refresh untuk data terbaru</footer>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+//  KONFIGURASI — GANTI URL INI DENGAN URL GOOGLE SHEETS ANDA
+// ════════════════════════════════════════════════════════════════
+// Cara dapat URL:
+// 1. Buka Google Sheets
+// 2. File → Share → Publish to web
+// 3. Pilih sheet → CSV → Publish
+// 4. Copy URL → paste di bawah (ATAU gunakan halaman Setup di dashboard)
+
+const DEFAULT_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTp_mVYnVuQKwHYkMnFs4kAjVOG9o_AYbjQP5qpg6pUdSF_cuKEeFRgV0hWGKQ_6aWhuzSDdRfICtAA/pub?gid=1461342055&single=true&output=csv';
+
+// ════════════════════════════════════════════════════════════════
+//  STATE GLOBAL
+// ════════════════════════════════════════════════════════════════
+let ORDERS = [];
+let curMonth = 'all';
+let curWeek  = null;
+let sheetUrl = localStorage.getItem('sheetUrl') || DEFAULT_SHEET_URL;
+
+// ════════════════════════════════════════════════════════════════
+//  UTILS
+// ════════════════════════════════════════════════════════════════
+const CH = {};
+function mk(id, cfg) {
+  if (CH[id]) CH[id].destroy();
+  const el = document.getElementById(id);
+  if (!el) return;
+  CH[id] = new Chart(el, cfg);
+}
+const MAT = o => (o.ba||0)+(o.bo||0)+(o.bs||0)+(o.no||0);
+const PRO = o => (o.ol||0)+(o.ko||0)+(o.db||0)+(o.bw||0)+(o.ml||0);
+const rc = r => r > 1 ? '#dc2626' : r > 0.7 ? '#d97706' : '#16a34a';
+const nf = n => Number(n||0).toLocaleString('id');
+function pill(r) {
+  if (r > 1)    return `<span class="pill p-red">Kritis</span>`;
+  if (r > 0.7)  return `<span class="pill p-amb">Waspada</span>`;
+  if (r < 0.15) return `<span class="pill p-top">Excellent</span>`;
+  return `<span class="pill p-grn">Normal</span>`;
+}
+function bbul(b) {
+  return b==='jan' ? `<span class="b-jan">JAN</span>`
+       : b==='feb' ? `<span class="b-feb">FEB</span>`
+       : `<span class="b-mar">MAR</span>`;
+}
+function vbars(arr, elId) {
+  const mx = Math.max(...arr.map(v=>v.r), 0.01);
+  document.getElementById(elId).innerHTML = [...arr].sort((a,b)=>b.r-a.r).map(v => {
+    const w = Math.round(v.r/mx*100);
+    return `<div class="br"><span class="br-n">${v.v}</span><div class="br-t"><div class="br-f" style="width:${w}%;background:${rc(v.r)}"></div></div><span class="br-v" style="color:${rc(v.r)}">${v.r.toFixed(2)}%</span></div>`;
+  }).join('');
+}
+function cOpts(ymx=1.2) {
+  return {
+    responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{display:false}},
+    scales:{
+      x:{ticks:{font:{size:10,family:'DM Sans'},color:'#9ca3af'},grid:{display:false},border:{display:false}},
+      y:{min:0,max:ymx,ticks:{font:{size:9},color:'#9ca3af',callback:v=>v.toFixed(1)+'%'},grid:{color:'rgba(0,0,0,.04)'},border:{display:false}}
+    }
+  };
+}
+function goP(id, btn) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.nt').forEach(t=>t.classList.remove('on'));
+  document.getElementById('page-'+id).classList.add('on');
+  btn.classList.add('on');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+// ════════════════════════════════════════════════════════════════
+//  PARSE CSV DARI GOOGLE SHEETS
+// ════════════════════════════════════════════════════════════════
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  const rows  = lines.slice(1); // skip header row 1
+  const data  = [];
+  for (const line of rows) {
+    // Handle quoted fields
+    const cols = line.match(/(".*?"|[^,]+)(?=,|$)/g) || line.split(',');
+    const clean = cols.map(c => c.replace(/^"|"$/g,'').trim());
+    if (!clean[3] || clean[3] === '') continue; // skip empty kode
+
+    const p  = parseFloat(clean[4]) || 0;
+    const r  = parseFloat(clean[5]) || 0;
+    const ba = parseFloat(clean[6]) || 0;
+    const bo = parseFloat(clean[7]) || 0;
+    const bs = parseFloat(clean[8]) || 0;
+    const no = parseFloat(clean[9]) || 0;
+    const ol = parseFloat(clean[10])|| 0;
+    const db = parseFloat(clean[11])|| 0;
+    const ko = parseFloat(clean[12])|| 0;
+    const bw = parseFloat(clean[13])|| 0;
+    const ml = parseFloat(clean[14])|| 0;
+    const tg = parseFloat(clean[17])|| 0;
+
+    const blnRaw = (clean[1]||'').toLowerCase().trim();
+    let bl = 'jan';
+    if (blnRaw.includes('feb')) bl = 'feb';
+    else if (blnRaw.includes('mar')) bl = 'mar';
+    else if (blnRaw.includes('apr')) bl = 'apr';
+    else if (blnRaw.includes('mei') || blnRaw.includes('may')) bl = 'mei';
+
+    data.push({
+      po: (clean[0]||'').trim(),
+      bl,
+      v:  (clean[2]||'').trim(),
+      k:  clean[3],
+      p, r,
+      mat: ba+bo+bs+no,  // Material = Bahan+Bolong+BS+Noda
+      pro: ol+db+ko+bw+ml,
+      ba, bo, bs, no, ol, db, ko, bw, ml,
+      target: tg,
+    });
+  }
+  return data;
+}
+
+// ════════════════════════════════════════════════════════════════
+//  LOAD DATA DARI GOOGLE SHEETS
+// ════════════════════════════════════════════════════════════════
+async function loadData() {
+  if (!sheetUrl) {
+    // Tampilkan panduan setup
+    document.getElementById('loading').classList.add('hide');
+    document.getElementById('sync-msg').textContent = '⚙️ Belum ada URL Google Sheets — buka tab Setup';
+    document.getElementById('sync-bar').className = 'sync-bar err';
+    showSetupGuide();
+    return;
+  }
+
+  document.getElementById('loading').classList.remove('hide');
+  document.getElementById('loading-sub').textContent = 'Mengambil data: ' + sheetUrl.slice(0,50)+'...';
+  document.getElementById('sync-msg').textContent = '🔄 Memuat data dari Google Sheets...';
+
+  try {
+    // Gunakan proxy CORS untuk menghindari CORS error
+    // Jika deploy di GitHub Pages, Google Sheets publish CSV sudah CORS-friendly
+    const url = sheetUrl.includes('export?format=csv')
+      ? sheetUrl
+      : sheetUrl + (sheetUrl.includes('?') ? '&' : '?') + 'output=csv';
+
+    const res = await fetch(url, {cache: 'no-store'});
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const text = await res.text();
+
+    ORDERS = parseCSV(text);
+    if (ORDERS.length === 0) throw new Error('Data kosong atau format tidak sesuai');
+
+    // Sukses!
+    document.getElementById('loading').classList.add('hide');
+    document.getElementById('error-banner').style.display = 'none';
+
+    const now = new Date().toLocaleString('id-ID');
+    document.getElementById('sync-bar').className = 'sync-bar ok';
+    document.getElementById('sync-msg').textContent = `✅ ${ORDERS.length} order berhasil dimuat dari Google Sheets`;
+    document.getElementById('sync-time').textContent = 'Update: ' + now;
+    document.getElementById('hdr-src').textContent = 'Connected · Google Sheets · ' + ORDERS.length + ' order';
+
+    renderAll();
+  } catch (err) {
+    document.getElementById('loading').classList.add('hide');
+    const banner = document.getElementById('error-banner');
+    banner.style.display = 'block';
+    document.getElementById('error-msg').innerHTML =
+      `Error: <code>${err.message}</code><br>Pastikan URL benar dan Google Sheets sudah di-publish sebagai CSV publik. Cek tab ⚙️ Setup.`;
+    document.getElementById('sync-bar').className = 'sync-bar err';
+    document.getElementById('sync-msg').textContent = '❌ Gagal memuat data — cek Setup';
+    console.error('Sheet load error:', err);
+  }
+}
+
+function showSetupGuide() {
+  document.getElementById('setup-status').innerHTML =
+    '<span style="color:#d97706">⚠️ Belum ada URL Google Sheets. Masukkan URL di bawah untuk memulai.</span>';
+  if (sheetUrl) document.getElementById('sheet-url-input').value = sheetUrl;
+}
+
+function saveAndLoad() {
+  const url = document.getElementById('sheet-url-input').value.trim();
+  if (!url) { alert('URL tidak boleh kosong!'); return; }
+  sheetUrl = url;
+  localStorage.setItem('sheetUrl', url);
+  document.getElementById('setup-status').textContent = '✅ URL disimpan. Memuat data...';
+  loadData();
+}
+
+// ════════════════════════════════════════════════════════════════
+//  COMPUTED STATS
+// ════════════════════════════════════════════════════════════════
+function getStats(filter) {
+  const rows = filter ? ORDERS.filter(filter) : ORDERS;
+  const prod  = rows.reduce((s,x)=>s+x.p,0);
+  const rej   = rows.reduce((s,x)=>s+x.r,0);
+  const mat   = rows.reduce((s,x)=>s+x.mat,0);
+  const pro   = rows.reduce((s,x)=>s+x.pro,0);
+  const ba    = rows.reduce((s,x)=>s+x.ba,0);
+  const bo    = rows.reduce((s,x)=>s+x.bo,0);
+  const bs    = rows.reduce((s,x)=>s+x.bs,0);
+  const no    = rows.reduce((s,x)=>s+x.no,0);
+  const ol    = rows.reduce((s,x)=>s+x.ol,0);
+  const ko    = rows.reduce((s,x)=>s+x.ko,0);
+  const db    = rows.reduce((s,x)=>s+x.db,0);
+  const bw    = rows.reduce((s,x)=>s+x.bw,0);
+  const ml    = rows.reduce((s,x)=>s+x.ml,0);
+  const rate  = prod > 0 ? rej/prod*100 : 0;
+  return {rows,prod,rej,mat,pro,ba,bo,bs,no,ol,ko,db,bw,ml,rate};
+}
+
+function getPOList() {
+  const pos = [...new Set(ORDERS.map(o=>o.po))].sort();
+  return pos.map(po => {
+    const s = getStats(o=>o.po===po);
+    const sample = ORDERS.find(o=>o.po===po);
+    const bl = sample ? sample.bl : 'jan';
+    const tgt = ORDERS.filter(o=>o.po===po).reduce((s,x)=>s+x.target,0);
+    return { po, bl, ...s, target:tgt, yield_: tgt>0?s.prod/tgt*100:0 };
+  });
+}
+
+function getVendorList() {
+  const vends = [...new Set(ORDERS.map(o=>o.v))].sort();
+  return vends.map(v => {
+    const s = getStats(o=>o.v===v);
+    const months = ['jan','feb','mar','apr','mei'];
+    const mRates = {};
+    months.forEach(m => {
+      const ms = getStats(o=>o.v===v&&o.bl===m);
+      mRates[m] = ms.prod>0 ? ms.rej/ms.prod*100 : 0;
+    });
+    return {v, ...s, mRates};
+  }).sort((a,b)=>b.rate-a.rate);
+}
+
+function getMonths() {
+  return [...new Set(ORDERS.map(o=>o.bl))].sort();
+}
+
+function getPOsForMonth(m) {
+  return [...new Set(ORDERS.filter(o=>o.bl===m).map(o=>o.po))].sort();
+}
+
+// ════════════════════════════════════════════════════════════════
+//  RENDER ALL PAGES
+// ════════════════════════════════════════════════════════════════
+function renderAll() {
+  renderOverview();
+  renderBulanan();
+  renderVendor();
+  renderCacat();
+  renderDetail();
+  renderPOTabs();
+}
+
+// ── CHART COLORS per bulan
+const BL_COLORS = {jan:'#2563eb',feb:'#d97706',mar:'#059669',apr:'#7c3aed',mei:'#0891b2'};
+const BL_BGS    = {jan:'rgba(37,99,235,.07)',feb:'rgba(217,119,6,.07)',mar:'rgba(5,150,105,.1)',apr:'rgba(124,58,237,.07)',mei:'rgba(8,145,178,.07)'};
+const TYPE_LABELS = ['Bahan','Bolong','Noda★','BS','Kotor','Melintir','Oli','Bowing','Dbl Bng'];
+const TYPE_COLORS = ['#1d4ed8','#2563eb','#3b82f6','#60a5fa','#d97706','#f59e0b','#f97316','#ea580c','#78350f'];
+const PIE_COLORS  = ['#2563eb','#d97706','#7c3aed','#059669','#0891b2','#f97316','#ec4899','#84cc16'];
+
+// ── OVERVIEW
+function renderOverview() {
+  const all = getStats();
+  const months = getMonths();
+  const PO_LIST = getPOList();
+  const vendors = getVendorList();
+
+  // Header KPIs
+  document.getElementById('h-prod').textContent  = nf(all.prod);
+  document.getElementById('h-rej').textContent   = nf(all.rej);
+  document.getElementById('h-rate').textContent  = all.rate.toFixed(2)+'%';
+  document.getElementById('h-period').textContent = months.map(m=>m.charAt(0).toUpperCase()+m.slice(1)).join('–')+' 2026';
+  document.getElementById('ov-src').textContent  = `Google Sheets · ${ORDERS.length} order · ${PO_LIST.length} PO · ${vendors.length} vendor`;
+
+  // KPI cards
+  document.getElementById('k-prod').textContent = nf(all.prod);
+  document.getElementById('k-prod-sub').textContent = `${PO_LIST.length} PO aktif`;
+  document.getElementById('k-rej').textContent = nf(all.rej);
+  document.getElementById('k-rej-sub').textContent = `Mat:${all.mat} · Proses:${all.pro}`;
+  document.getElementById('k-rate').textContent = all.rate.toFixed(2)+'%';
+  document.getElementById('k-rate').style.color = rc(all.rate);
+  document.getElementById('k-rate-sub').textContent = all.rate < 1 ? '✓ Di bawah target 1%' : '⚠ Melebihi target';
+  document.getElementById('k-mat').textContent = nf(all.mat);
+  document.getElementById('k-mat-sub').textContent = all.rej>0 ? Math.round(all.mat/all.rej*100)+'% dari reject' : '';
+
+  // Trend chart — per PO
+  const poRates = PO_LIST.map(p=>p.rate.toFixed(4));
+  const datasets = months.map(m => ({
+    data: PO_LIST.map(p => p.bl===m ? p.rate : null),
+    borderColor: BL_COLORS[m]||'#888',
+    backgroundColor: BL_BGS[m]||'rgba(0,0,0,.05)',
+    borderWidth: 2.5, tension:.4, fill:true,
+    pointRadius: PO_LIST.map(p=>p.bl===m?6:0),
+    pointBackgroundColor: BL_COLORS[m]||'#888',
+    spanGaps:false
+  }));
+  datasets.push({data:PO_LIST.map(()=>1),borderColor:'#dc2626',borderWidth:1.5,borderDash:[6,4],pointRadius:0,fill:false});
+  mk('ov-trend',{type:'line',data:{labels:PO_LIST.map(p=>p.po.replace('PO - ','PO-')),datasets},options:cOpts()});
+
+  // Monthly bar
+  mk('ov-monthly',{type:'bar',data:{
+    labels:months.map(m=>m.charAt(0).toUpperCase()+m.slice(1)),
+    datasets:[{data:months.map(m=>getStats(o=>o.bl===m).rate.toFixed(4)),
+      backgroundColor:months.map(m=>BL_COLORS[m]||'#888'),borderRadius:7,borderSkipped:false,barThickness:32}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{ticks:{font:{size:9},color:'#9ca3af'},grid:{display:false},border:{display:false}},
+              y:{min:0,ticks:{font:{size:8},color:'#9ca3af',callback:v=>v.toFixed(2)+'%'},grid:{color:'rgba(0,0,0,.04)'},border:{display:false}}}}
+  });
+
+  // Donut
+  mk('ov-donut',{type:'doughnut',data:{
+    labels:[`Material ${all.rej>0?Math.round(all.mat/all.rej*100):0}%`,`Proses ${all.rej>0?Math.round(all.pro/all.rej*100):0}%`],
+    datasets:[{data:[all.mat,all.pro],backgroundColor:['#2563eb','#d97706'],borderWidth:0,hoverOffset:5}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'65%',
+      plugins:{legend:{position:'right',labels:{font:{size:9},boxWidth:8,padding:5,color:'#6b7280'}}}}
+  });
+
+  // Vendor bars
+  vbars(vendors.map(v=>({v:v.v,r:v.rate})),'ov-vbars');
+
+  // Types bar
+  mk('ov-types',{type:'bar',data:{
+    labels:TYPE_LABELS,
+    datasets:[{data:[all.ba,all.bo,all.no,all.bs,all.ko,all.ml,all.ol,all.bw,all.db],
+      backgroundColor:TYPE_COLORS,borderWidth:0,borderRadius:5}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{ticks:{font:{size:9},color:'#9ca3af'},grid:{display:false},border:{display:false}},
+              y:{ticks:{font:{size:9},color:'#9ca3af'},grid:{color:'rgba(0,0,0,.04)'},border:{display:false}}}}
+  });
+
+  // PO table
+  document.getElementById('ov-tbl').innerHTML = PO_LIST.map(x=>`<tr>
+    <td style="font-weight:700">${x.po.replace('PO - ','PO-')}</td>
+    <td>${bbul(x.bl)}</td>
+    <td class="mono r">${nf(x.target)}</td>
+    <td class="mono r">${nf(x.prod)}</td>
+    <td class="mono r">${x.yield_.toFixed(2)}%</td>
+    <td class="mono r">${x.rej}</td>
+    <td class="mono r" style="color:${rc(x.rate)};font-weight:700">${x.rate.toFixed(3)}%</td>
+    <td class="mono r">${x.mat}</td>
+    <td class="mono r">${x.pro}</td>
+    <td>${pill(x.rate)}</td>
+  </tr>`).join('');
+
+  // Month pills update
+  const allS = getStats();
+  document.getElementById('mb-all-rate').textContent = allS.rate.toFixed(2)+'%';
+  document.getElementById('mb-all-info').textContent = nf(allS.prod)+' unit';
+  ['jan','feb','mar','apr','mei'].forEach(m=>{
+    const ms = getStats(o=>o.bl===m);
+    const el_r = document.getElementById('mb-'+m+'-rate');
+    const el_i = document.getElementById('mb-'+m+'-info');
+    if(el_r) el_r.textContent = ms.prod>0 ? ms.rate.toFixed(2)+'%' : '–';
+    if(el_i) el_i.textContent = ms.prod>0 ? nf(ms.prod)+' unit' : 'Tidak ada data';
+  });
+}
+
+// ── BULANAN
+function renderBulanan() {
+  setM('all', document.getElementById('ms-all'));
+}
+
+function setM(m, el) {
+  curMonth = m;
+  document.querySelectorAll('.mpill').forEach(s=>s.className='mpill');
+  const cls = {all:'a0',jan:'a1',feb:'a2',mar:'a3',apr:'a1',mei:'a2'};
+  el.classList.add(cls[m]||'a0');
+
+  const filter = m==='all' ? null : o=>o.bl===m;
+  const d = getStats(filter);
+  const months = getMonths();
+
+  document.getElementById('bm-p').textContent = nf(d.prod);
+  document.getElementById('bm-ps').textContent = m==='all'?'Semua bulan':'Bulan '+m;
+  document.getElementById('bm-r').textContent = nf(d.rej);
+  document.getElementById('bm-rs').textContent = `Mat:${d.mat} · Proses:${d.pro}`;
+  document.getElementById('bm-rate').textContent = d.rate.toFixed(3)+'%';
+  document.getElementById('bm-rate').style.color = rc(d.rate);
+  document.getElementById('bm-mat').textContent = nf(d.mat);
+  document.getElementById('bm-mats').textContent = d.rej>0?Math.round(d.mat/d.rej*100)+'% termasuk Noda':'–';
+
+  // Trend
+  const PO_LIST = getPOList().filter(p=>m==='all'||p.bl===m);
+  const dsMonths = m==='all' ? months : [m];
+  const datasets = dsMonths.map(bm=>({
+    data: PO_LIST.map(p=>p.bl===bm?p.rate:null),
+    borderColor:BL_COLORS[bm]||'#888',backgroundColor:BL_BGS[bm]||'rgba(0,0,0,.05)',
+    borderWidth:2.5,tension:.4,fill:true,pointRadius:6,pointBackgroundColor:BL_COLORS[bm]||'#888',spanGaps:false
+  }));
+  datasets.push({data:PO_LIST.map(()=>1),borderColor:'#dc2626',borderWidth:1.5,borderDash:[6,4],pointRadius:0,fill:false});
+  mk('bm-trend',{type:'line',data:{labels:PO_LIST.map(p=>p.po.replace('PO - ','PO-')),datasets},options:cOpts()});
+
+  // Vendor bars
+  const vendors = getVendorList();
+  const filtered = m==='all' ? vendors : vendors.filter(v=>v.mRates[m]>0).map(v=>({...v,rate:v.mRates[m]}));
+  vbars(filtered.map(v=>({v:v.v,r:v.rate})),'bm-vbars');
+  document.getElementById('bm-vl').textContent = m==='all'?'Semua bulan':'Bulan '+m;
+
+  // Mat/Proses grouped bar
+  mk('bm-matproses',{type:'bar',data:{
+    labels:months.map(mm=>mm.charAt(0).toUpperCase()+mm.slice(1)),
+    datasets:[
+      {label:'Mat',data:months.map(mm=>getStats(o=>o.bl===mm).mat),backgroundColor:'#2563eb',borderRadius:5},
+      {label:'Proses',data:months.map(mm=>getStats(o=>o.bl===mm).pro),backgroundColor:'#d97706',borderRadius:5}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{ticks:{font:{size:10},color:'#9ca3af'},grid:{display:false},border:{display:false}},
+              y:{ticks:{font:{size:9},color:'#9ca3af'},grid:{color:'rgba(0,0,0,.04)'},border:{display:false}}}}
+  });
+
+  // Types per bulan
+  mk('bm-types',{type:'bar',data:{
+    labels:TYPE_LABELS,
+    datasets:months.map(mm=>({
+      label:mm.charAt(0).toUpperCase()+mm.slice(1),
+      data:[...Object.values(getStats(o=>o.bl===mm))].slice(0), // recompute
+      backgroundColor:BL_COLORS[mm]||'#888',borderRadius:4
+    })).map(ds=>{
+      const s = getStats(o=>o.bl===ds.label.toLowerCase());
+      return {...ds,data:[s.ba,s.bo,s.no,s.bs,s.ko,s.ml,s.ol,s.bw,s.db]};
+    })},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'top',labels:{font:{size:9},boxWidth:7,padding:7,color:'#9ca3af'}}},
+      scales:{x:{ticks:{font:{size:8},color:'#9ca3af'},grid:{display:false},border:{display:false}},
+              y:{ticks:{font:{size:9},color:'#9ca3af'},grid:{color:'rgba(0,0,0,.04)'},border:{display:false}}}}
+  });
+
+  // Rows
+  const rows = ORDERS.filter(filter||(() => true));
+  const byVendorPO = rows.reduce((acc,o)=>{
+    const key = o.po+'__'+o.v;
+    if(!acc[key]) acc[key]={po:o.po,v:o.v,bl:o.bl,prod:0,rej:0,mat:0,pro:0};
+    acc[key].prod+=o.p; acc[key].rej+=o.r; acc[key].mat+=MAT(o); acc[key].pro+=PRO(o);
+    return acc;
+  },{});
+  document.getElementById('bm-tbl-lbl').textContent = m==='all'?'Semua bulan':'Bulan '+m;
+  document.getElementById('bm-rows').innerHTML = Object.values(byVendorPO).map(x=>{
+    const rt = x.prod>0?x.rej/x.prod*100:0;
+    return`<tr>
+      <td style="font-weight:700">${x.po.replace('PO - ','PO-')}</td>
+      <td style="font-weight:600">${x.v}</td>
+      <td class="mono r">${nf(x.prod)}</td>
+      <td class="mono r">${x.rej}</td>
+      <td class="mono r" style="color:${rc(rt)};font-weight:700">${rt.toFixed(3)}%</td>
+      <td class="mono r">${x.mat}</td>
+      <td class="mono r">${x.pro}</td>
+      <td>${pill(rt)}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── PO TABS (MINGGUAN)
+const WC = ['w1','w2','w3','w4','w5'];
+function renderPOTabs() {
+  const PO_LIST = getPOList().filter(p=>p.bl!=='jan');// show Feb + beyond
+  const tabs = document.getElementById('po-tabs');
+  tabs.innerHTML = PO_LIST.map((p,i)=>{
+    const cls = WC[i % WC.length];
+    const id = 'wt-'+p.po.replace(/\s/g,'_');
+    return`<div class="wtab" id="${id}" onclick="setW('${p.po}',this)">
+      <div class="wt-l">${p.po.replace('PO - ','PO-')}</div>
+      <div class="wt-r">${p.rate.toFixed(2)}%</div>
+      <div class="wt-d">${p.bl.charAt(0).toUpperCase()+p.bl.slice(1)}</div>
+    </div>`;
+  }).join('');
+  if(PO_LIST.length>0) {
+    curWeek = PO_LIST[0].po;
+    const firstTab = tabs.querySelector('.wtab');
+    if(firstTab){ firstTab.classList.add('w1'); setW(PO_LIST[0].po, firstTab); }
+  }
+}
+
+function setW(po, btn) {
+  curWeek = po;
+  document.querySelectorAll('.wtab').forEach(b=>{b.className='wtab'});
+  btn.classList.add('w1');
+
+  const orders = ORDERS.filter(o=>o.po===po);
+  const d = getStats(o=>o.po===po);
+  const PO_LIST = getPOList();
+  const idx = PO_LIST.findIndex(p=>p.po===po);
+  const prev = idx>0 ? PO_LIST[idx-1] : null;
+
+  document.getElementById('wm-p').textContent = nf(d.prod);
+  document.getElementById('wm-l').textContent = po.replace('PO - ','PO-');
+  document.getElementById('wm-r').textContent = nf(d.rej);
+  document.getElementById('wm-rs').textContent = `Mat:${d.mat} · Proses:${d.pro}`;
+  document.getElementById('wm-rate').textContent = d.rate.toFixed(3)+'%';
+  document.getElementById('wm-rate').style.color = rc(d.rate);
+  if(prev && prev.rate>0){
+    const diff = d.rate - prev.rate;
+    document.getElementById('wm-d').textContent = (diff<0?'▼ ':'▲ ')+Math.abs(diff).toFixed(3)+'%';
+    document.getElementById('wm-d').style.color = diff<0?'#16a34a':'#dc2626';
+    document.getElementById('wm-dl').textContent = (diff<0?'membaik':'memburuk')+' vs '+prev.po.replace('PO - ','PO-');
+  } else {
+    document.getElementById('wm-d').textContent = '—';
+    document.getElementById('wm-d').style.color = '#9ca3af';
+    document.getElementById('wm-dl').textContent = 'PO pertama';
+  }
+
+  // Trend chart all POs
+  const allPOs = PO_LIST;
+  const months = getMonths();
+  const pC = allPOs.map(p=>p.po===po?'#dc2626':'#d1d5db');
+  const pS = allPOs.map(p=>p.po===po?9:4);
+  const col = BL_COLORS[(PO_LIST.find(p=>p.po===po)||{bl:'jan'}).bl]||'#2563eb';
+  mk('wm-trend',{type:'line',data:{
+    labels:allPOs.map(p=>p.po.replace('PO - ','PO-')),
+    datasets:[
+      {data:allPOs.map(p=>p.rate),borderColor:col,backgroundColor:col+'14',borderWidth:2.5,tension:.4,fill:true,pointRadius:pS,pointBackgroundColor:pC,pointBorderColor:col,pointBorderWidth:2},
+      {data:allPOs.map(()=>1),borderColor:'#dc2626',borderWidth:1.5,borderDash:[6,4],pointRadius:0,fill:false}
+    ]},options:cOpts()
+  });
+
+  // Vendor bars for this PO
+  const vByVend = orders.reduce((acc,o)=>{
+    if(!acc[o.v])acc[o.v]={prod:0,rej:0};
+    acc[o.v].prod+=o.p; acc[o.v].rej+=o.r; return acc;
+  },{});
+  vbars(Object.entries(vByVend).map(([v,s])=>({v,r:s.prod>0?s.rej/s.prod*100:0})),'wm-vbars');
+  document.getElementById('wm-vl').textContent = po.replace('PO - ','PO-');
+
+  // Types
+  mk('wm-type',{type:'bar',data:{
+    labels:TYPE_LABELS,
+    datasets:[{data:[d.ba,d.bo,d.no,d.bs,d.ko,d.ml,d.ol,d.bw,d.db],backgroundColor:TYPE_COLORS,borderWidth:0,borderRadius:5}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{ticks:{font:{size:9},color:'#9ca3af'},grid:{display:false},border:{display:false}},
+              y:{ticks:{font:{size:9},color:'#9ca3af'},grid:{color:'rgba(0,0,0,.04)'},border:{display:false}}}}
+  });
+  document.getElementById('wm-typel').textContent = po.replace('PO - ','PO-')+' · Biru=Mat · Kuning=Proses';
+
+  mk('wm-src',{type:'doughnut',data:{
+    labels:[`Material ${d.rej>0?Math.round(d.mat/d.rej*100):0}%`,`Proses ${d.rej>0?Math.round(d.pro/d.rej*100):0}%`],
+    datasets:[{data:[d.mat||.001,d.pro||.001],backgroundColor:['#2563eb','#d97706'],borderWidth:0,hoverOffset:5}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'58%',
+      plugins:{legend:{position:'bottom',labels:{font:{size:9},boxWidth:8,padding:6,color:'#6b7280'}}}}
+  });
+  document.getElementById('wm-srcl').textContent = po.replace('PO - ','PO-');
+  document.getElementById('wm-trl').textContent = po.replace('PO - ','PO-')+' disorot';
+  document.getElementById('wm-detl').textContent = po.replace('PO - ','PO-');
+  document.getElementById('wm-dettitle').textContent = 'Detail Order — '+po.replace('PO - ','PO-');
+
+  document.getElementById('wm-rows').innerHTML = orders.map(o=>{
+    const rt = o.p>0?o.r/o.p*100:0;
+    return`<tr>
+      <td style="font-weight:600">${o.v}</td>
+      <td class="mono" style="font-size:10px;color:var(--txt3)">${o.k}</td>
+      <td class="mono r">${nf(o.p)}</td>
+      <td class="mono r">${o.r}</td>
+      <td class="mono r" style="color:${rc(rt)};font-weight:700">${rt.toFixed(3)}%</td>
+      <td class="mono r">${o.ba}</td><td class="mono r">${o.bo}</td><td class="mono r">${o.bs}</td>
+      <td class="mono r" style="color:#2563eb;font-weight:700">${o.no}</td>
+      <td class="mono r" style="color:#2563eb;font-weight:700">${MAT(o)}</td>
+      <td class="mono r" style="color:#d97706">${PRO(o)}</td>
+      <td>${pill(rt)}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── VENDOR
+function renderVendor() {
+  const vendors = getVendorList();
+  const months = getMonths();
+
+  mk('vn-grp',{type:'bar',data:{
+    labels:vendors.map(v=>v.v),
+    datasets:months.map(m=>({
+      label:m.charAt(0).toUpperCase()+m.slice(1),
+      data:vendors.map(v=>v.mRates[m]||0),
+      backgroundColor:BL_COLORS[m]||'#888',borderRadius:4
+    }))},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'top',labels:{font:{size:10},boxWidth:8,padding:8,color:'#9ca3af'}}},
+      scales:{x:{ticks:{font:{size:10,family:'DM Sans'},color:'#9ca3af'},grid:{display:false},border:{display:false}},
+              y:{min:0,ticks:{font:{size:9},color:'#9ca3af',callback:v=>v.toFixed(1)+'%'},grid:{color:'rgba(0,0,0,.04)'},border:{display:false}}}}
+  });
+  vbars(vendors.map(v=>({v:v.v,r:v.rate})).reverse(),'vn-rank');
+
+  mk('vn-prod',{type:'doughnut',data:{
+    labels:vendors.map(v=>v.v+' '+nf(v.prod)),
+    datasets:[{data:vendors.map(v=>v.prod),backgroundColor:PIE_COLORS,borderWidth:0,hoverOffset:7}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'50%',
+      plugins:{legend:{position:'right',labels:{font:{size:9},boxWidth:9,padding:7,color:'#6b7280'}}}}
+  });
+  mk('vn-rej',{type:'doughnut',data:{
+    labels:vendors.map(v=>v.v+' '+v.rej),
+    datasets:[{data:vendors.map(v=>v.rej),backgroundColor:PIE_COLORS,borderWidth:0,hoverOffset:7}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'50%',
+      plugins:{legend:{position:'right',labels:{font:{size:9},boxWidth:9,padding:7,color:'#6b7280'}}}}
+  });
+
+  document.getElementById('vn-tbl').innerHTML = vendors.map(v=>`<tr>
+    <td style="font-weight:700;color:${rc(v.rate)}">${v.v}</td>
+    <td class="mono r">${nf(v.prod)}</td>
+    <td class="mono r">${v.rej}</td>
+    <td class="mono r">${v.mat}</td>
+    <td class="mono r">${v.pro}</td>
+    <td class="mono r" style="color:${rc(v.rate)};font-weight:700">${v.rate.toFixed(3)}%</td>
+    <td>${months.map(m=>v.mRates[m]>0?`<span style="font-size:10px;color:${rc(v.mRates[m])}">${m}:${v.mRates[m].toFixed(2)}%</span>`:'').join(' ')}</td>
+    <td>${pill(v.rate)}</td>
+  </tr>`).join('');
+}
+
+// ── JENIS CACAT
+function renderCacat() {
+  const all = getStats();
+  const months = getMonths();
+  const totals = [all.ba,all.bo,all.no,all.bs,all.ko,all.ml,all.ol,all.bw,all.db];
+  const tot = totals.reduce((a,b)=>a+b,0);
+
+  mk('dc-hbar',{type:'bar',data:{labels:TYPE_LABELS,datasets:[{data:totals,backgroundColor:TYPE_COLORS,borderWidth:0,borderRadius:7}]},
+    options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},
+      scales:{x:{ticks:{font:{size:10},color:'#9ca3af'},grid:{color:'rgba(0,0,0,.04)'},border:{display:false}},
+              y:{ticks:{font:{size:11,family:'DM Sans'},color:'#6b7280'},grid:{display:false},border:{display:false}}}}
+  });
+  mk('dc-donut',{type:'doughnut',data:{
+    labels:TYPE_LABELS.map((l,i)=>`${l}: ${totals[i]} (${tot>0?(totals[i]/tot*100).toFixed(1):0}%)`),
+    datasets:[{data:totals,backgroundColor:TYPE_COLORS,borderWidth:0,hoverOffset:9}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'46%',
+      plugins:{legend:{position:'right',labels:{font:{size:9},boxWidth:9,padding:6,color:'#6b7280'}}}}
+  });
+  mk('dc-monthly',{type:'bar',data:{
+    labels:TYPE_LABELS,
+    datasets:months.map(m=>{
+      const s=getStats(o=>o.bl===m);
+      return{label:m.charAt(0).toUpperCase()+m.slice(1),
+        data:[s.ba,s.bo,s.no,s.bs,s.ko,s.ml,s.ol,s.bw,s.db],
+        backgroundColor:BL_COLORS[m]||'#888',borderRadius:4};
+    })},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'top',labels:{font:{size:9},boxWidth:7,padding:7,color:'#9ca3af'}}},
+      scales:{x:{ticks:{font:{size:8},color:'#9ca3af'},grid:{display:false},border:{display:false}},
+              y:{ticks:{font:{size:9},color:'#9ca3af'},grid:{color:'rgba(0,0,0,.04)'},border:{display:false}}}}
+  });
+}
+
+// ── DETAIL
+function renderDetail() {
+  const vendors = [...new Set(ORDERS.map(o=>o.v))].sort();
+  const months  = getMonths();
+
+  const fbRow = document.getElementById('det-filters');
+  fbRow.innerHTML = `<button class="fb on" onclick="fdet('all',this)">Semua (${ORDERS.length})</button>`
+    + months.map(m=>`<button class="fb" onclick="fdet('${m}',this)">${m.charAt(0).toUpperCase()+m.slice(1)}</button>`).join('')
+    + vendors.map(v=>`<button class="fb" onclick="fdet('${v}',this)">${v}</button>`).join('');
+
+  document.getElementById('det-src').textContent = `${ORDERS.length} order · Noda = Material`;
+  fdet('all', fbRow.querySelector('.fb'));
+}
+
+function fdet(f, btn) {
+  document.querySelectorAll('#det-filters .fb').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  const vendors = [...new Set(ORDERS.map(o=>o.v))];
+  const months  = getMonths();
+  const rows = months.includes(f) ? ORDERS.filter(o=>o.bl===f)
+             : vendors.includes(f) ? ORDERS.filter(o=>o.v===f)
+             : ORDERS;
+  document.getElementById('det-info').textContent = `Menampilkan ${rows.length} dari ${ORDERS.length} order · Noda = Reject Material`;
+  document.getElementById('det-rows').innerHTML = rows.map(o=>{
+    const rt = o.p>0?o.r/o.p*100:0;
+    return`<tr>
+      <td style="font-weight:700">${o.po.replace('PO - ','PO-')}</td>
+      <td>${bbul(o.bl)}</td>
+      <td style="font-weight:600">${o.v}</td>
+      <td class="mono" style="font-size:10px;color:var(--txt3)">${o.k}</td>
+      <td class="mono r">${nf(o.p)}</td>
+      <td class="mono r">${o.r}</td>
+      <td class="mono r" style="color:${rc(rt)};font-weight:700">${rt.toFixed(3)}%</td>
+      <td class="mono r">${o.ba}</td>
+      <td class="mono r">${o.bo}</td>
+      <td class="mono r">${o.bs}</td>
+      <td class="mono r" style="color:#2563eb;font-weight:700">${o.no}</td>
+      <td class="mono r" style="color:#2563eb;font-weight:700">${MAT(o)}</td>
+      <td class="mono r" style="color:#d97706">${PRO(o)}</td>
+      <td>${pill(rt)}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ════════════════════════════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════════════════════════════
+// Isi form setup jika ada URL tersimpan
+if (sheetUrl) {
+  document.getElementById('sheet-url-input').value = sheetUrl;
+}
+
+// Load data saat halaman dibuka
+loadData();
+
+// Auto-refresh setiap 5 menit
+setInterval(loadData, 5 * 60 * 1000);
+</script>
+</body>
+</html>
